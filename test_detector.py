@@ -26,21 +26,24 @@ if __name__ == '__main__':
     hog.setSVMDetector(np.array(svmvec))
     while True:
         ret, im = capture.read()
-        gray_im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        # gray_im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
-        found, w = hog.detectMultiScale(gray_im, winStride=(16,16), padding=(8,8), scale=1.05)
+        found, w = hog.detectMultiScale(im, winStride=(16,16), padding=(8,8), scale=1.05)
+        ind = (w > 1)
+        w = w[ind]
+        found = found[w > 1,:]
         # max = np.argmax(w)
         # found=[found[max,:]]
-        print w
-        found_filtered = []
-        for ri, r in enumerate(found):
-            for qi, q in enumerate(found):
-                if ri != qi and inside(r, q):
-                    break
-            else:
-                found_filtered.append(r)
+        print w, found
+        # found_filtered = []
+        # for ri, r in enumerate(found):
+        #     for qi, q in enumerate(found):
+        #         if ri != qi and inside(r, q):
+        #             break
+        #     else:
+        #         found_filtered.append(r)
         draw_detections(im, found)
-        draw_detections(im, found_filtered, 3)
+        # draw_detections(im, found_filtered, 3)
         cv2.imshow('video', im)
         if 0xFF & cv2.waitKey(5) == 27:
             break

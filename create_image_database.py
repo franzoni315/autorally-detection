@@ -20,9 +20,9 @@ def load_pascal_annotation(index, database_path, index_list, counter):
     save_name = os.path.join(database_path, 'HOGImages', '%05d' % counter + '.jpg')
     index_list.append('%05d' % counter)
     counter += 1
-    save_name_flipped = os.path.join(database_path, 'HOGImages', '%05d' % counter + '.jpg')
-    index_list.append('%05d' % counter)
-    counter += 1
+    # save_name_flipped = os.path.join(database_path, 'HOGImages', '%05d' % counter + '.jpg')
+    # index_list.append('%05d' % counter)
+    # counter += 1
 
     def get_data_from_tag(node, tag):
         return node.getElementsByTagName(tag)[0].childNodes[0].data
@@ -39,26 +39,26 @@ def load_pascal_annotation(index, database_path, index_list, counter):
     y2 = (int(get_data_from_tag(obj, 'ymax')) - 1)
 
     img = cv2.imread(file_name)
-    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    crop_img = gray_image[y1:y2, x1:x2]
+    # gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    crop_img = img[y1:y2, x1:x2]
     res_img = cv2.resize(crop_img,(hog_width,hog_height))
     flip_img = cv2.flip(res_img, 1)
     cv2.imwrite(save_name, res_img)
-    cv2.imwrite(save_name_flipped, flip_img)
+    # cv2.imwrite(save_name_flipped, flip_img)
     return counter
 
 def random_crop(index, voc_path, autorally_path, index_list, counter):
     file_name = os.path.join(voc_path, 'JPEGImages', index + '.jpg')
 
     img = cv2.imread(file_name)
-    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     height, width = img.shape[:2]
     if height > 64 and width > 128:
         x1 = random.randint(0, width - 128)
         y1 = random.randint(0, height - 64)
         x2 = x1 + 128
         y2 = y1 + 64
-        crop_img = gray_image[y1:y2, x1:x2]
+        crop_img = img[y1:y2, x1:x2]
         save_name = os.path.join(autorally_database_path, 'HOGImages', '%05d' % counter + '.jpg')
         index_list.append('%05d' % counter)
         counter += 1
