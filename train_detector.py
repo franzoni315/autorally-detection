@@ -1,76 +1,101 @@
-import cv2, os
+import cv2, os, yaml
 import numpy as np
 
+
+class AutorallyTrainer:
+    def __init__(self):
+        self.database_path = 'autorally_database'
+        self.save_model_name = os.path.join('svm.txt')
+        self.train_path = os.path.join(self.database_path, 'ImageSets/Main', 'train.txt')
+        self.test_path = os.path.join(self.database_path, 'ImageSets/Main', 'test.txt')
+        self.pos_train_imgs = []
+        self.neg_train_imgs = []
+        self.pos_test_imgs = []
+        self.neg_test_imgs = []
+        with open(self.train_path) as f:
+            for line in f:
+                index, flag = line.split()
+                if flag == '1':
+                    file_name = os.path.join(self.database_path, 'HOGImages', index + '.jpg')
+                    self.pos_train_imgs.append(cv2.imread(file_name))
+                elif flag == '-1':
+                    file_name = os.path.join(self.database_path, 'HOGImages', index + '.jpg')
+                    self.neg_train_imgs.append(cv2.imread(file_name))
+
+        with open(self.test_path) as f:
+            for line in f:
+                index, flag = line.split()
+                if flag == '1':
+                    file_name = os.path.join(self.database_path, 'HOGImages', index + '.jpg')
+                    self.pos_test_imgs.append(cv2.imread(file_name))
+                elif flag == '-1':
+                    file_name = os.path.join(self.database_path, 'HOGImages', index + '.jpg')
+                    self.neg_test_imgs.append(cv2.imread(file_name))
+
+    def data_augmentation(self):
+        # Data augmentation
+        pos_imgs_aug = []
+        neg_imgs_aug = []
+        for im in self.pos_train_imgs:
+            pos_imgs_aug.append(cv2.flip(im, 1))
+        for im in self.neg_train_imgs:
+            neg_imgs_aug.append(cv2.flip(im, 1))
+
+        self.pos_train_imgs += pos_imgs_aug
+        self.neg_train_imgs += neg_imgs_aug
+
+    def train(self):
+        n_pos = len(self.pos_train_imgs)
+        n_neg = len(self.neg_train_imgs)
+        pos_features = np.zeros((n_pos, 3780), dtype=np.float32)
+        pos_labels = np.zeros(n_pos, dtype=np.int)
+        neg_features = np.zeros((n_neg, 3780), dtype=np.float32)
+        neg_labels = np.zeros(n_neg, dtype=np.int)
+
+
+        win_size = (128,64)
+        block_size = (16,16)
+        block_stride = (8,8)
+        cell_size = (8,8)
+        nbins = 9
+        hog = cv2.HOGDescriptor(win_size, block_size, block_stride, cell_size, nbins)
+
+        for i, im in enumerate(self.pos_train_imgs):
+            x = np.asarray(hog.compute(im), dtype=np.float32)
+            pos_features[i, :] = np.transpose(x)
+            pos_labels[i] = 1
+
+        for i, im in enumerate(self.neg_train_imgs):
+            x = np.asarray(hog.compute(im), dtype=np.float32)
+            neg_features[i, :] = np.transpose(x)
+            neg_labels[i] = -1
+
+        params = dict(kernel_type=cv2.SVM_LINEAR, svm_type=cv2.SVM_C_SVC,
+                      term_crit=(cv2.TERM_CRITERIA_MAX_ITER, 50000, 1e-9), C=5, gamma=0.5)
+        model = cv2.SVM()
+        training_set = np.concatenate((pos_features, neg_features))
+        label_set = np.concatenate((pos_labels, neg_labels))
+        model.train(training_set, label_set, params=params)
+        model.save(self.save_model_name)
+        self.format_output()
+
+    def format_output(self):
+        skip_lines = 15
+        with open(self.save_model_name, 'r') as f:
+            for i in range(skip_lines):
+                dummy = f.readline()
+            data = yaml.load(f)
+        svm_vectors = data['support_vectors'][0]
+        svm_vectors = [-x for x in svm_vectors]
+        rho = data['decision_functions'][0]['rho']
+        svm_vectors.append(rho)
+
+        print 'SVM weights: \n', svm_vectors
+        with open(self.save_model_name, 'w') as f:
+            for elem in svm_vectors:
+                f.write(str(elem)+'\n')
+
 if __name__ == '__main__':
-    hog = cv2.HOGDescriptor((128,64), (16,16), (8,8), (8,8), 9)
-    database_path = 'autorally_database'
-    save_model_name = os.path.join(database_path, 'svm.dat')
-    train_files = os.path.join(database_path, 'ImageSets/Main', 'train.txt')
-    test_files = os.path.join(database_path, 'ImageSets/Main', 'test.txt')
-    pos_train_files = []
-    neg_train_files = []
-    pos_test_files = []
-    neg_test_files = []
-    with open(train_files) as f:
-        for line in f:
-            index, flag = line.split()
-            if flag == '1':
-                pos_train_files.append(index)
-            elif flag == '-1':
-                neg_train_files.append(index)
-
-    with open(test_files) as f:
-        for line in f:
-            index, flag = line.split()
-            if flag == '1':
-                pos_test_files.append(index)
-            elif flag == '-1':
-                neg_test_files.append(index)
-
-
-    # index = [os.path.splitext(x)[0] for x in files]
-
-    pos_imgs = []
-    neg_imgs = []
-    for i, file in enumerate(pos_train_files):
-        file_name = os.path.join(database_path, 'HOGImages', file + '.jpg')
-        pos_imgs.append(cv2.imread(file_name))
-    for i, file in enumerate(neg_train_files):
-        file_name = os.path.join(database_path, 'HOGImages', file + '.jpg')
-        neg_imgs.append(cv2.imread(file_name))
-
-    # Data augmentation
-    pos_imgs_aug = []
-    neg_imgs_aug = []
-    for im in pos_imgs:
-        pos_imgs_aug.append(cv2.flip(im, 1))
-    for im in neg_imgs:
-        neg_imgs_aug.append(cv2.flip(im, 1))
-
-    n_pos = len(pos_imgs) + len(pos_imgs_aug)
-    n_neg = len(neg_imgs) + len(neg_imgs_aug)
-    pos_features = np.zeros((n_pos, 3780), dtype=np.float32)
-    pos_labels = np.zeros(n_pos, dtype=np.int)
-    neg_features = np.zeros((n_neg, 3780), dtype=np.float32)
-    neg_labels = np.zeros(n_neg, dtype=np.int)
-
-    for i, im in enumerate(pos_imgs + pos_imgs_aug):
-        x = np.asarray(hog.compute(im))
-        x.astype(np.float32)
-        pos_features[i, :] = np.transpose(x)
-        pos_labels[i] = 1
-
-    for i, im in enumerate(neg_imgs + neg_imgs_aug):
-        x = np.asarray(hog.compute(im))
-        x.astype(np.float32)
-        neg_features[i, :] = np.transpose(x)
-        neg_labels[i] = -1
-
-    params = dict( kernel_type = cv2.SVM_LINEAR, svm_type = cv2.SVM_C_SVC, term_crit = (cv2.TERM_CRITERIA_MAX_ITER, 50000, 1e-9), C=5, gamma=0.5)
-    model = cv2.SVM()
-    training_set = np.concatenate((pos_features, neg_features))
-    label_set = np.concatenate((pos_labels, neg_labels))
-
-    # model.train(training_set, label_set, params = params)
-    model.train(training_set, label_set, params=params)
-    model.save('svm.dat')
+    trainer = AutorallyTrainer()
+    trainer.data_augmentation()
+    trainer.train()
