@@ -1,7 +1,6 @@
 import cv2, os, yaml
 import numpy as np
 
-
 class AutorallyTrainer:
     def __init__(self):
         self.database_path = 'autorally_database'
@@ -12,6 +11,14 @@ class AutorallyTrainer:
         self.neg_train_imgs = []
         self.pos_test_imgs = []
         self.neg_test_imgs = []
+        self.svm = cv2.SVM()
+        win_size = (128,64)
+        block_size = (16,16)
+        block_stride = (8,8)
+        cell_size = (8,8)
+        nbins = 9
+        self.hog = cv2.HOGDescriptor(win_size, block_size, block_stride, cell_size, nbins)
+
         with open(self.train_path) as f:
             for line in f:
                 index, flag = line.split()
@@ -52,31 +59,23 @@ class AutorallyTrainer:
         neg_features = np.zeros((n_neg, 3780), dtype=np.float32)
         neg_labels = np.zeros(n_neg, dtype=np.int)
 
-
-        win_size = (128,64)
-        block_size = (16,16)
-        block_stride = (8,8)
-        cell_size = (8,8)
-        nbins = 9
-        hog = cv2.HOGDescriptor(win_size, block_size, block_stride, cell_size, nbins)
-
         for i, im in enumerate(self.pos_train_imgs):
-            x = np.asarray(hog.compute(im), dtype=np.float32)
+            x = np.asarray(self.hog.compute(im), dtype=np.float32)
             pos_features[i, :] = np.transpose(x)
             pos_labels[i] = 1
 
         for i, im in enumerate(self.neg_train_imgs):
-            x = np.asarray(hog.compute(im), dtype=np.float32)
+            x = np.asarray(self.hog.compute(im), dtype=np.float32)
             neg_features[i, :] = np.transpose(x)
             neg_labels[i] = -1
 
         params = dict(kernel_type=cv2.SVM_LINEAR, svm_type=cv2.SVM_C_SVC,
                       term_crit=(cv2.TERM_CRITERIA_MAX_ITER, 50000, 1e-9), C=5, gamma=0.5)
-        model = cv2.SVM()
+
         training_set = np.concatenate((pos_features, neg_features))
         label_set = np.concatenate((pos_labels, neg_labels))
-        model.train(training_set, label_set, params=params)
-        model.save(self.save_model_name)
+        self.svm.train(training_set, label_set, params=params)
+        self.svm.save(self.save_model_name)
         self.format_output()
 
     def format_output(self):
@@ -90,12 +89,41 @@ class AutorallyTrainer:
         rho = data['decision_functions'][0]['rho']
         svm_vectors.append(rho)
 
-        print 'SVM weights: \n', svm_vectors
+        print 'SVM weights: \n', svm_vectors, '\n'
         with open(self.save_model_name, 'w') as f:
             for elem in svm_vectors:
                 f.write(str(elem)+'\n')
+
+    def testing(self):
+        n_pos = len(self.pos_test_imgs)
+        n_pos_right = 0
+        n_pos_wrong = 0
+        for img in self.pos_test_imgs:
+            features = self.hog.compute(img)
+            prediction = self.svm.predict(features)
+            if prediction == -1:
+                n_pos_wrong += 1
+            elif prediction == 1:
+                n_pos_right += 1
+
+        n_neg = len(self.neg_test_imgs)
+        n_neg_right = 0
+        n_neg_wrong = 0
+        for img in self.neg_test_imgs:
+            features = self.hog.compute(img)
+            prediction = self.svm.predict(features)
+            if prediction == 1:
+                n_neg_wrong += 1
+            elif prediction == -1:
+                n_neg_right += 1
+
+        print 'Confusion matrix:'
+        print '%4d' % n_pos_right, '%4d' % n_neg_wrong
+        print '%4d' % n_pos_wrong, '%4d' % n_neg_right
+
 
 if __name__ == '__main__':
     trainer = AutorallyTrainer()
     trainer.data_augmentation()
     trainer.train()
+    trainer.testing()
