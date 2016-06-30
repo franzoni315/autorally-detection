@@ -39,6 +39,13 @@ class AutorallyTrainer:
                     file_name = os.path.join(self.database_path, 'HOGImages', index + '.jpg')
                     self.neg_test_imgs.append(cv2.imread(file_name))
 
+        # include hard negatives
+        hard_negative_files = os.listdir(os.path.join(self.database_path, 'HardNegativeMining'))
+        hard_negative_indices = [os.path.splitext(x)[0] for x in hard_negative_files]
+        for index in hard_negative_indices:
+            file_name = os.path.join(self.database_path, 'HardNegativeMining', index + '.jpg')
+            self.neg_train_imgs.append(cv2.imread(file_name))
+
     def data_augmentation(self):
         # Data augmentation
         pos_imgs_aug = []

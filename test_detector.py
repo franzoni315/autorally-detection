@@ -18,18 +18,15 @@ class AutorallyDetector:
         self.hog.setSVMDetector(np.asarray(svm_vectors))
 
     def detect(self, img):
-        found, w = self.hog.detectMultiScale(im, winStride=(16,16), padding=(8,8), scale=1.05)
-        ind = (w > 1)
-        w = w[ind]
-        found = found[w > 1,:]
+        found, w = self.hog.detectMultiScale(img, winStride=(16,16), padding=(8,8), scale=1.05)
+        # ind = (w > 1)
+        # w = w[ind]
+        # found = found[w > 1,:]
         return found
 
 def draw_detections(img, rects, thickness = 1):
     for x, y, w, h in rects:
-        # the HOG detector returns slightly larger rectangles than the real objects.
-        # so we slightly shrink the rectangles to get a nicer output.
-        pad_w, pad_h = 0,0
-        cv2.rectangle(img, (x+pad_w, y+pad_h), (x+w-pad_w, y+h-pad_h), (0, 255, 0), thickness)
+        cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), thickness)
 
 if __name__ == '__main__':
     detector = AutorallyDetector()
@@ -41,4 +38,7 @@ if __name__ == '__main__':
         draw_detections(im, found)
         cv2.imshow('video', im)
         if 0xFF & cv2.waitKey(5) == 27:
+            cv2.destroyAllWindows()
             break
+    capture.release()
+    cv2.destroyAllWindows()
