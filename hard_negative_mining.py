@@ -30,6 +30,10 @@ class AutorallyHardNegativeMining:
             res_img = cv2.resize(crop_img,(self.hog_width, self.hog_height))
             cv2.imwrite(save_name, res_img)
 
+def draw_detections(img, rects, thickness = 1):
+    for x, y, w, h in rects:
+        cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), thickness)
+
 if __name__ == '__main__':
     detector = AutorallyDetector()
     negative_miner = AutorallyHardNegativeMining()
@@ -39,6 +43,7 @@ if __name__ == '__main__':
         ret, im = capture.read()
         found = detector.detect(im)
         negative_miner.crop_image(im, found)
-        # cv2.imshow('video', im)
-        # if 0xFF & cv2.waitKey(5) == 27:
-        #     break
+        draw_detections(im, found)
+        cv2.imshow('video', im)
+        if 0xFF & cv2.waitKey(5) == 27:
+            break
