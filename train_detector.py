@@ -1,6 +1,7 @@
 import cv2, os, yaml
 import numpy as np
 
+
 class AutorallyTrainer:
     def __init__(self):
         self.database_path = 'autorally_database'
@@ -12,10 +13,11 @@ class AutorallyTrainer:
         self.pos_test_imgs = []
         self.neg_test_imgs = []
         self.svm = cv2.SVM()
-        win_size = (128,64)
-        block_size = (16,16)
-        block_stride = (8,8)
-        cell_size = (8,8)
+        self.gray = True
+        win_size = (128, 64)
+        block_size = (16, 16)
+        block_stride = (8, 8)
+        cell_size = (8, 8)
         nbins = 9
         self.hog = cv2.HOGDescriptor(win_size, block_size, block_stride, cell_size, nbins)
 
@@ -24,27 +26,48 @@ class AutorallyTrainer:
                 index, flag = line.split()
                 if flag == '1':
                     file_name = os.path.join(self.database_path, 'HOGImages', index + '.jpg')
-                    self.pos_train_imgs.append(cv2.imread(file_name))
+                    im = cv2.imread(file_name)
+                    if self.gray:
+                        self.pos_train_imgs.append(cv2.cvtColor(im, cv2.COLOR_BGR2GRAY))
+                    else:
+                        self.pos_train_imgs.append(im)
                 elif flag == '-1':
                     file_name = os.path.join(self.database_path, 'HOGImages', index + '.jpg')
-                    self.neg_train_imgs.append(cv2.imread(file_name))
+                    im = cv2.imread(file_name)
+                    if self.gray:
+                        self.neg_train_imgs.append(cv2.cvtColor(im, cv2.COLOR_BGR2GRAY))
+                    else:
+                        self.neg_train_imgs.append(im)
 
         with open(self.test_path) as f:
             for line in f:
                 index, flag = line.split()
                 if flag == '1':
                     file_name = os.path.join(self.database_path, 'HOGImages', index + '.jpg')
-                    self.pos_test_imgs.append(cv2.imread(file_name))
+                    im = cv2.imread(file_name)
+                    if self.gray:
+                        self.pos_test_imgs.append(cv2.cvtColor(im, cv2.COLOR_BGR2GRAY))
+                    else:
+                        self.pos_test_imgs.append(im)
                 elif flag == '-1':
                     file_name = os.path.join(self.database_path, 'HOGImages', index + '.jpg')
-                    self.neg_test_imgs.append(cv2.imread(file_name))
+                    im = cv2.imread(file_name)
+                    if self.gray:
+                        self.neg_test_imgs.append(cv2.cvtColor(im, cv2.COLOR_BGR2GRAY))
+                    else:
+                        self.neg_test_imgs.append(im)
 
         # include hard negatives
         hard_negative_files = os.listdir(os.path.join(self.database_path, 'HardNegativeMining'))
         hard_negative_indices = [os.path.splitext(x)[0] for x in hard_negative_files]
         for index in hard_negative_indices:
             file_name = os.path.join(self.database_path, 'HardNegativeMining', index + '.jpg')
-            self.neg_train_imgs.append(cv2.imread(file_name))
+            im = cv2.imread(file_name)
+            if self.gray:
+                self.neg_train_imgs.append(cv2.cvtColor(im, cv2.COLOR_BGR2GRAY))
+            else:
+                self.neg_train_imgs.append(im)
+
 
     def data_augmentation(self):
         # Data augmentation
@@ -52,11 +75,21 @@ class AutorallyTrainer:
         neg_imgs_aug = []
         for im in self.pos_train_imgs:
             pos_imgs_aug.append(cv2.flip(im, 1))
+
+            rows,cols = im.shape
+            M1 = cv2.getRotationMatrix2D((cols/2,rows/2),5,1)
+            M2 = cv2.getRotationMatrix2D((cols/2,rows/2),-5,1)
+            dst1 = cv2.warpAffine(im,M1,(cols,rows))
+            dst2 = cv2.warpAffine(im,M2,(cols,rows))
+            pos_imgs_aug.append(cv2.resize(dst1,(128,64)))
+            pos_imgs_aug.append(cv2.resize(dst2,(128,64)))
         for im in self.neg_train_imgs:
             neg_imgs_aug.append(cv2.flip(im, 1))
 
         self.pos_train_imgs += pos_imgs_aug
         self.neg_train_imgs += neg_imgs_aug
+
+
 
     def train(self):
         n_pos = len(self.pos_train_imgs)
@@ -77,7 +110,8 @@ class AutorallyTrainer:
             neg_labels[i] = -1
 
         params = dict(kernel_type=cv2.SVM_LINEAR, svm_type=cv2.SVM_C_SVC,
-                      term_crit=(cv2.TERM_CRITERIA_MAX_ITER, 50000, 1e-9), C=5, gamma=0.5)
+                      term_crit=(cv2.TERM_CRITERIA_MAX_ITER or cv2.TERM_CRITERIA_EPS, 100000, 1e-9), C=1, gamma=0,
+                      p=0.1)
 
         training_set = np.concatenate((pos_features, neg_features))
         label_set = np.concatenate((pos_labels, neg_labels))
@@ -99,7 +133,7 @@ class AutorallyTrainer:
         print 'SVM weights: \n', svm_vectors, '\n'
         with open(self.save_model_name, 'w') as f:
             for elem in svm_vectors:
-                f.write(str(elem)+'\n')
+                f.write(str(elem) + '\n')
 
     def testing(self):
         n_pos = len(self.pos_test_imgs)

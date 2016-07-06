@@ -18,10 +18,12 @@ class AutorallyDetector:
         self.hog.setSVMDetector(np.asarray(svm_vectors))
 
     def detect(self, img):
-        found, w = self.hog.detectMultiScale(img, winStride=(16,16), padding=(8,8), scale=1.03)
-        # ind = (w > 1)
-        # w = w[ind]
-        # found = found[w > 1,:]
+        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        found, w = self.hog.detectMultiScale(gray_img, winStride=(16,16), padding=(8,8), scale=1.05)
+        #ind = (w > 1)
+        #w = w[ind]
+        #found = found[w > 1,:]
+        print w
         return found
 
 def draw_detections(img, rects, thickness = 1):
@@ -30,12 +32,13 @@ def draw_detections(img, rects, thickness = 1):
 
 if __name__ == '__main__':
     detector = AutorallyDetector()
-    capture = cv2.VideoCapture("/home/igor/py-faster-rcnn/data/demo/autorallyDetection2.mp4")
+    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/autorally_database/Videos/0002.mp4")
     # capture = cv2.VideoCapture("/home/igor/Downloads/test.mp4")
 
     cv2.namedWindow('video')
     while True:
         ret, im = capture.read()
+        im = cv2.resize(im, (640, 480))
         found = detector.detect(im)
         draw_detections(im, found)
         cv2.imshow('video', im)
