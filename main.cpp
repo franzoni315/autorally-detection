@@ -19,16 +19,16 @@ int main() {
     int nlevels;
     double hit_threshold;
     bool gamma_corr;
-    win_stride_width = 16;
+    win_stride_width = 32;
     win_stride_height = 16;
-    gr_threshold = 8;
+    gr_threshold = 2;
     nlevels = 13;
-    hit_threshold = 0.7;
+    hit_threshold = 0.2;
     scale = 1.05;
     gamma_corr = false;
 
 
-    Size win_size(128, 64);
+    Size win_size(96, 48);
     Size win_stride(win_stride_width, win_stride_height);
 //    Size win_stride(win_stride_width, win_stride_height);
 //    ocl::HOGDescriptor gpu_hog(win_size, Size(16, 16), Size(8, 8), Size(8, 8), 9);
@@ -53,10 +53,9 @@ int main() {
     Mat frame, frame_aux;
     ocl::oclMat gpu_img;
     vector<Rect> found;
-    resize_scale = 3;
     while(true){
         cap >> frame;
-        Size sz((int)((double)frame.cols/resize_scale), (int)((double)frame.rows/resize_scale));
+        Size sz(800, 600);
         resize(frame, frame, sz);
 
 //        cvtColor(frame, frame_aux, CV_BGR2BGRA);

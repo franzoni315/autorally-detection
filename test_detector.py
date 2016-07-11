@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import cv2, os
 import numpy as np
 
@@ -9,7 +11,8 @@ class AutorallyDetector:
             for line in f:
                 svm_vectors.append(float(line))
 
-        win_size = (128,64)
+        #win_size = (128,64)
+        win_size = (96,48)
         block_size = (16,16)
         block_stride = (8,8)
         cell_size = (8,8)
@@ -19,12 +22,21 @@ class AutorallyDetector:
 
     def detect(self, img):
         gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        found, w = self.hog.detectMultiScale(gray_img, winStride=(16,16), padding=(8,8), scale=1.05)
-        #ind = (w > 1)
-        #w = w[ind]
-        #found = found[w > 1,:]
-        print w
+        found, w = self.hog.detectMultiScale(gray_img, winStride=(16,16), padding=(0,0), scale=1.05)
+        #if not w == ():
+        #    max_ind = np.argmax(w)
+        #    if w[max_ind] > 1.0:
+        #        found = [found[np.argmax(w),:]]
+        #    else:
+        #        found =[]
+
+        #boxes = []
+        #if not w == ():
+        #    for i, elem in enumerate(w):
+        #        if elem >= 1:
+        #            boxes.append(found[i,:])
         return found
+        #return boxes
 
 def draw_detections(img, rects, thickness = 1):
     for x, y, w, h in rects:
@@ -32,13 +44,13 @@ def draw_detections(img, rects, thickness = 1):
 
 if __name__ == '__main__':
     detector = AutorallyDetector()
-    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/autorally_database/Videos/0002.mp4")
+    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/autorally_database/Videos/0003.mp4")
     # capture = cv2.VideoCapture("/home/igor/Downloads/test.mp4")
 
     cv2.namedWindow('video')
     while True:
         ret, im = capture.read()
-        im = cv2.resize(im, (640, 480))
+        im = cv2.resize(im, (800, 600))
         found = detector.detect(im)
         draw_detections(im, found)
         cv2.imshow('video', im)

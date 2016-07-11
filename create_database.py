@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import cv2, os, random
 from xml.dom import minidom
 
@@ -8,6 +9,7 @@ class AutorallyDatabase():
         self.neg_list = []
         self.voc_database = '/home/igor/Documents/caffe/data/VOCdevkit/VOC2007/'
         self.database_path = 'autorally_database'
+        self.win_size = (96,48)
 
     def create_database(self):
         # Generating positive examples
@@ -28,7 +30,7 @@ class AutorallyDatabase():
         test_files = os.path.join(self.database_path, 'ImageSets/Main', 'test.txt')
         random.shuffle(self.pos_list)
         random.shuffle(self.neg_list)
-        n_pos_train = int(0.75*len(self.pos_list))
+        n_pos_train = int(0.9*len(self.pos_list))
         n_neg_train = int(0.75*len(self.neg_list))
         pos_train = self.pos_list[0:n_pos_train]
         pos_test = self.pos_list[n_pos_train:]
@@ -56,13 +58,13 @@ class AutorallyDatabase():
         Thanks Ross!
 
         """
-        hog_width = 128
-        hog_height = 64
+        
         xml_name = os.path.join(database_path, 'Annotations', index + '.xml')
         file_name = os.path.join(database_path, 'JPEGImages', index + '.jpg')
         save_name = os.path.join(database_path, 'HOGImages', '%05d' % self.counter + '.jpg')
         index_list.append('%05d' % self.counter)
         self.counter += 1
+        
 
         def get_data_from_tag(node, tag):
             return node.getElementsByTagName(tag)[0].childNodes[0].data
@@ -80,18 +82,20 @@ class AutorallyDatabase():
 
         img = cv2.imread(file_name)
         crop_img = img[y1:y2, x1:x2]
-        res_img = cv2.resize(crop_img,(hog_width,hog_height))
+        res_img = cv2.resize(crop_img, self.win_size)
         cv2.imwrite(save_name, res_img)
 
     def random_crop(self, index, voc_path, autorally_path, index_list):
         file_name = os.path.join(voc_path, 'JPEGImages', index + '.jpg')
         img = cv2.imread(file_name)
         height, width = img.shape[:2]
-        if height > 64 and width > 128:
-            x1 = random.randint(0, width - 128)
-            y1 = random.randint(0, height - 64)
-            x2 = x1 + 128
-            y2 = y1 + 64
+        win_width = self.win_size[0]
+        win_height = self.win_size[1]
+        if height > win_height and width > win_width:
+            x1 = random.randint(0, width - win_width)
+            y1 = random.randint(0, height - win_height)
+            x2 = x1 + win_width
+            y2 = y1 + win_height
             crop_img = img[y1:y2, x1:x2]
             save_name = os.path.join(self.database_path, 'HOGImages', '%05d' % self.counter + '.jpg')
             index_list.append('%05d' % self.counter)
