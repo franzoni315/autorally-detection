@@ -44,7 +44,7 @@ def draw_detections(img, rects, thickness = 1):
 
 if __name__ == '__main__':
     detector = AutorallyDetector()
-    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/autorally_database/Videos/0003.mp4")
+    capture = cv2.VideoCapture("/home/alexl/Documents/autorally-detection/AutorallyDetection3.mp4")
     # capture = cv2.VideoCapture("/home/igor/Downloads/test.mp4")
 
     cv2.namedWindow('video')

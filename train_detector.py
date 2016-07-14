@@ -23,6 +23,7 @@ class AutorallyTrainer:
         block_stride = (8, 8)
         cell_size = (8, 8)
         nbins = 9
+        # Value between 0-100
         self.hog = cv2.HOGDescriptor(win_size, block_size, block_stride, cell_size, nbins)
 
         with open(self.train_path) as f:
@@ -95,6 +96,10 @@ class AutorallyTrainer:
         # Flipping horizontally
         for im in self.pos_train_imgs:
             pos_imgs_aug.append(cv2.flip(im, 1))
+
+        # Change contrast with histogram equalization
+        for im in self.pos_train_imgs:
+        	pos_imgs_aug.append(cv2.equalizeHist(im, 1))
 
         # Flipping horizontally
         #for im in self.neg_train_imgs:
