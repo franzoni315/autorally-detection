@@ -7,12 +7,9 @@ find_package(OpenCV)
 include_directories( ${OpenCV_INCLUDE_DIRS})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-set(SOURCE_FILES main.cpp)
 
-add_executable(main ${SOURCE_FILES})
+add_executable(main main.cpp)
 target_link_libraries( main ${OpenCV_LIBS})
 
-get_cmake_property(_variableNames VARIABLES)
-foreach (_variableName ${_variableNames})
-    message(STATUS "${_variableName}=${${_variableName}}")
-endforeach()
+add_executable(viz viz.cpp)
+target_link_libraries( viz ${OpenCV_LIBS})
