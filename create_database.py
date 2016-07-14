@@ -61,7 +61,7 @@ class AutorallyDatabase():
         
         xml_name = os.path.join(database_path, 'Annotations', index + '.xml')
         file_name = os.path.join(database_path, 'JPEGImages', index + '.jpg')
-        save_name = os.path.join(database_path, 'HOGImages', '%05d' % self.counter + '.jpg')
+        save_name = os.path.join(database_path, 'HOGImages/Pos', '%05d' % self.counter + '.jpg')
         index_list.append('%05d' % self.counter)
         self.counter += 1
         
@@ -85,6 +85,12 @@ class AutorallyDatabase():
         res_img = cv2.resize(crop_img, self.win_size)
         cv2.imwrite(save_name, res_img)
 
+        save_name = os.path.join(database_path, 'HOGImages/Pos', '%05d' % self.counter + '.jpg')
+        index_list.append('%05d' % self.counter)
+        self.counter += 1
+        flip_img = cv2.flip(res_img, 1)
+        cv2.imwrite(save_name, flip_img)
+
     def random_crop(self, index, voc_path, autorally_path, index_list):
         file_name = os.path.join(voc_path, 'JPEGImages', index + '.jpg')
         img = cv2.imread(file_name)
@@ -97,10 +103,11 @@ class AutorallyDatabase():
             x2 = x1 + win_width
             y2 = y1 + win_height
             crop_img = img[y1:y2, x1:x2]
-            save_name = os.path.join(self.database_path, 'HOGImages', '%05d' % self.counter + '.jpg')
+            save_name = os.path.join(self.database_path, 'HOGImages/Neg', '%05d' % self.counter + '.jpg')
             index_list.append('%05d' % self.counter)
             self.counter += 1
             cv2.imwrite(save_name, crop_img)
+            
 
 if __name__ == '__main__':
     autorally_database = AutorallyDatabase()
