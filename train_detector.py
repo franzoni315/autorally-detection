@@ -101,6 +101,10 @@ class AutorallyTrainer:
         for im in self.pos_train_imgs:
         	pos_imgs_aug.append(cv2.equalizeHist(im, 1))
 
+        # Change brightness with fixed value 
+        for im in self.pos_train_imgs:
+        	pos_imgs_aug.append(cv2.)
+
         # Flipping horizontally
         #for im in self.neg_train_imgs:
         #    neg_imgs_aug.append(cv2.flip(im, 1))
