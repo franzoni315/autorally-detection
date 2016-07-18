@@ -2,51 +2,59 @@
 import cv2, os, sys, shutil
 import numpy as np
 
-database_path = 'autorally_database'
-kmeans_path = os.path.join(database_path, 'HOGImages/Subcategories')
-im_path = os.path.join(database_path, 'HOGImages/Pos')
-files = sorted(os.listdir(im_path))
+class ImageClustering():
+    def __init__(self, kmeans_path, im_path, K):
+        self.database_path = 'autorally_database'
+        self.kmeans_path = kmeans_path
+        self.im_path = im_path
+        self.files = sorted(os.listdir(self.im_path))
+        self.win_size = (96, 48)
+        self.block_size = (16, 16)
+        self.block_stride = (8, 8)
+        self.cell_size = (8, 8)
+        self.nbins = 9
+        self.hog = cv2.HOGDescriptor(self.win_size, self.block_size, self.block_stride, self.cell_size, self.nbins)
+        self.feature_size = self.hog.getDescriptorSize()
+        self.K = K
+        # remove old folders in kmeans_path
+        for the_file in os.listdir(self.kmeans_path):
+            file_path = os.path.join(self.kmeans_path, the_file)
+            try:
+                if os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print(e)
+    def cluster(self):
+        imgs = []
+        for i, file in enumerate(self.files):
+            img_aux = cv2.imread(os.path.join(self.im_path, file))
+            gray_img = cv2.cvtColor(img_aux, cv2.COLOR_BGR2GRAY)
+            imgs.append(gray_img)
 
-win_size = (96, 48)
-block_size = (16, 16)
-block_stride = (8, 8)
-cell_size = (8, 8)
-nbins = 9
-feature_size = 1980
-hog = cv2.HOGDescriptor(win_size, block_size, block_stride, cell_size, nbins)
+        hog_features = np.zeros((len(imgs), self.feature_size), dtype=np.float32)
 
-# remove old folders in kmeans_path
-for the_file in os.listdir(kmeans_path):
-    file_path = os.path.join(kmeans_path, the_file)
-    try:
-        if os.path.isdir(file_path):
-            shutil.rmtree(file_path)
-    except Exception as e:
-        print(e)
-
-imgs = []
-for i, file in enumerate(files):
-    img_aux = cv2.imread(os.path.join(im_path, file))
-    imgs.append(cv2.cvtColor(img_aux, cv2.COLOR_BGR2GRAY))
+        for i, im in enumerate(imgs):
+            x = np.asarray(self.hog.compute(im, self.win_size), dtype=np.float32)
+            hog_features[i, :] = np.transpose(x)
 
 
-hog_features = np.zeros((len(imgs), feature_size), dtype=np.float32)
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10000, 1e-8)
+        attempts = 10
+        compactness, bestLabels, centers = cv2.kmeans(hog_features, self.K, criteria, attempts, cv2.KMEANS_RANDOM_CENTERS)
+        print compactness
+        print bestLabels
+        print centers
 
-for i, im in enumerate(imgs):
-    x = np.asarray(hog.compute(im), dtype=np.float32)
-    hog_features[i, :] = np.transpose(x)
+        for i in range(self.K):
+            os.makedirs(os.path.join(self.kmeans_path, str(i)))
 
-K = 6
-criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10000, 1e-8)
-attempts = 10
-compactness, bestLabels, centers = cv2.kmeans(hog_features, K, criteria, attempts, cv2.KMEANS_PP_CENTERS)
-print compactness
-print bestLabels
-print centers
+        for i, img in enumerate(imgs):
+            print os.path.join(self.kmeans_path, str(bestLabels[i][0]), self.files[i])
+            cv2.imwrite(os.path.join(self.kmeans_path, str(bestLabels[i][0]), self.files[i]), img)
 
-for i in range(K):
-    os.makedirs(os.path.join(kmeans_path, str(i)))
-
-for i, img in enumerate(imgs):
-    print os.path.join(kmeans_path, str(bestLabels[i][0]), files[i])
-    cv2.imwrite(os.path.join(kmeans_path, str(bestLabels[i][0]), files[i]), img)
+if __name__ == '__main__':
+    database_path = 'autorally_database'
+    c = ImageClustering(os.path.join(database_path, 'HOGImages/NegSubcategories'), os.path.join(database_path, 'HOGImages/Neg'), 2)
+    c.cluster()
+    c = ImageClustering(os.path.join(database_path, 'HOGImages/PosSubcategories'), os.path.join(database_path, 'HOGImages/Pos'), 6)
+    c.cluster()

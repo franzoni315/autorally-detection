@@ -34,7 +34,7 @@ class AutorallyTrainerMultiClass:
             for name in img_names:
                 img = cv2.imread(os.path.join(subcategory_path, name))
                 if img is not None:
-                    self.pos_imgs.append(img)
+                    self.pos_imgs.append(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
                     self.labels.append(i)
                 else:
                     print "File " + os.path.join(subcategory_path, name) + " not found. Closing program..."
@@ -46,11 +46,21 @@ class AutorallyTrainerMultiClass:
         for name in img_names:
             img = cv2.imread(os.path.join(negatives_path, name))
             if img is not None:
-                self.neg_imgs.append(img)
+                self.neg_imgs.append(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
                 self.labels.append(self.K)
             else:
                 print "File " + os.path.join(negatives_path, name) + " not found. Closing program..."
                 sys.exit(0)
+
+        # include hard negatives
+        hard_negative_files = os.listdir(os.path.join(self.database_path, 'HardNegativeMining'))
+        hard_negative_indices = [os.path.splitext(x)[0] for x in hard_negative_files]
+        for index in hard_negative_indices:
+            file_name = os.path.join(self.database_path, 'HardNegativeMining', index + '.jpg')
+            im = cv2.resize(cv2.imread(file_name), win_size)
+            if self.gray:
+                self.neg_imgs.append(cv2.cvtColor(im, cv2.COLOR_BGR2GRAY))
+                self.labels.append(self.K)
 
         self.imgs = self.pos_imgs + self.neg_imgs
 

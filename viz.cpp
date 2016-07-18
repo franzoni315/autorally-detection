@@ -166,16 +166,16 @@ Mat get_hogdescriptor_visu(const Mat& color_origImg, vector<float>& descriptorVa
 } // get_hogdescriptor_visu
 
 int main(){
-    Size win_size(2*96,2*48);
+    Size win_size(96, 48);
     Mat img;
-    Mat img_raw = imread("/home/igor/Documents/autorally-detection/autorally_database/HOGImages/Pos/00001.jpg");
-    resize(img_raw,img_raw, win_size);
+    Mat img_raw = imread("/home/igor/Documents/autorally-detection/autorally_database/HOGImages/Pos/00050.jpg");
+    resize(img_raw,img_raw, Size(96, 48));
     cvtColor(img_raw, img, CV_RGB2GRAY);
     HOGDescriptor d(win_size, Size(16,16), Size(8,8), Size(8,8), 9);
     vector<float> descriptorsValues;
     vector<Point> locations;
     d.compute( img, descriptorsValues, Size(0,0), Size(0,0), locations);
-    Mat viz = get_hogdescriptor_visu(img_raw, descriptorsValues, win_size);
+    Mat viz = get_hogdescriptor_visu(img_raw, descriptorsValues, Size(96, 48));
     namedWindow("hog feature");
     imshow("hog feature", viz);
     waitKey(0);
