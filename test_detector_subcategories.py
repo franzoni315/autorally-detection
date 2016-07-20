@@ -6,10 +6,17 @@ from sklearn import svm
 from sklearn.externals import joblib
 
 class AutorallyDetectorMultiClass:
-    def __init__(self):
-        self.svm_ = joblib.load('svm.pkl')
-        self.Kpos = 6
-        self.Kneg = 1
+    def __init__(self, svm_file):
+        self.svm_ = joblib.load(svm_file)
+        # self.svm_ = joblib.load('svm.pkl')
+        self.database_path = 'autorally_database'
+        self.img_path = os.path.join(self.database_path, 'HOGImages')
+        self.pos_subcategories_path = os.path.join(self.img_path, 'PosSubcategories')
+        self.neg_subcategories_path = os.path.join(self.img_path, 'NegSubcategories')
+        self.pos_subcategories_folders = sorted(os.listdir(self.pos_subcategories_path))
+        self.Kpos = len(self.pos_subcategories_folders)
+        self.neg_subcategories_folders = sorted(os.listdir(self.neg_subcategories_path))
+        self.Kneg = len(self.neg_subcategories_folders)
         self.win_size = (96,48)
         block_size = (16,16)
         block_stride = (8,8)
@@ -26,7 +33,6 @@ class AutorallyDetectorMultiClass:
             found_, weights_ = self.detect(gray_img, scale)
             found += found_
             weights += weights_
-        print weights
         return found, weights
 
     def detect(self, img, scale=1, win_stride=(32,16)):
@@ -48,28 +54,39 @@ class AutorallyDetectorMultiClass:
             height_blocks += 1
         features = self.hog.compute(img, win_stride)
         features = features.reshape((features.size/self.hog.getDescriptorSize(), self.hog.getDescriptorSize()))
-        predictions = self.svm_.decision_function(features)
+        # predictions = self.svm_.decision_function(features)
+        predictions = self.svm_.predict_proba(features)
         for i in range(height_blocks * width_blocks):
             col = i % width_blocks
             row = i / width_blocks
             prediction = predictions[i]
-            neg_weight = 0
-            for j in range(self.Kpos, self.Kpos + self.Kneg):
-                if prediction[j] > 0:
-                    neg_weight += prediction[j]
-            if neg_weight > 0:
-                continue
-            pos_weight = 0
-            for j in range(self.Kpos):
-                if prediction[j] > 0:
-                    pos_weight += prediction[j]
-            if pos_weight > 0.2:
+            pos_prob = np.sum(prediction[:self.Kpos])
+            neg_prob = np.sum(prediction[self.Kpos:])
+            if pos_prob > neg_prob:
                 x = int(col*win_stride[0]*scale)
                 y = int(row*win_stride[1]*scale)
                 w = int(self.win_size[0]*scale)
                 h = int(self.win_size[1]*scale)
                 found.append([x, y, w, h])
-                weights.append(pos_weight)
+                weights.append(prediction[pos_prob])
+            # neg_weight = 0
+            # for j in range(self.Kpos, self.Kpos + self.Kneg):
+            #     if prediction[j] > 0:
+            #         neg_weight += prediction[j]
+            # if neg_weight > 0:
+            #     continue
+            # pos_weight = 0
+            # for j in range(self.Kpos):
+            #     if prediction[j] > 0:
+            #         pos_weight += prediction[j]
+            # if pos_weight > 0.2:
+            #     print prediction
+            #     x = int(col*win_stride[0]*scale)
+            #     y = int(row*win_stride[1]*scale)
+            #     w = int(self.win_size[0]*scale)
+            #     h = int(self.win_size[1]*scale)
+            #     found.append([x, y, w, h])
+            #     weights.append(pos_weight)
 
         return found, weights
 
@@ -136,8 +153,8 @@ def non_max_suppression_fast(boxes, weights, overlapThresh):
     return boxes[pick].astype("int")
 
 if __name__ == '__main__':
-    detector = AutorallyDetectorMultiClass()
-    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/autorally_database/Videos/0002.mp4")
+    detector = AutorallyDetectorMultiClass('svm.pkl')
+    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/autorally_database/Videos/0003.mp4")
     # capture = cv2.VideoCapture("/home/igor/Downloads/test.mp4")
 
     cv2.namedWindow('video')

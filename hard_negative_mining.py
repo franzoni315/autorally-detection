@@ -2,7 +2,7 @@
 
 import cv2, os
 import numpy as np
-from test_detector import AutorallyDetector
+from test_detector_subcategories import AutorallyDetectorMultiClass, non_max_suppression_fast
 
 class AutorallyHardNegativeMining:
     def __init__(self):
@@ -38,16 +38,18 @@ def draw_detections(img, rects, thickness = 1):
         cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), thickness)
 
 if __name__ == '__main__':
-    detector = AutorallyDetector()
+    detector = AutorallyDetectorMultiClass()
     negative_miner = AutorallyHardNegativeMining()
-    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/autorally_database/Videos/0005.mov")
+    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/autorally_database/Videos/left_camera_image_color_compressed2.mp4")
     cv2.namedWindow('video')
     while True:
         ret, im = capture.read()
-        im = cv2.resize(im, (640, 480))
-        found = detector.detect(im)
-        negative_miner.crop_image(im, found)
-        draw_detections(im, found, 3)
+
+        im = cv2.resize(im, (96*8, 48*12))
+        found, w = detector.detectMultiScale(im)
+        boxes = non_max_suppression_fast(np.asarray(found), np.asarray(w), 0.3)
+        negative_miner.crop_image(im, boxes)
+        draw_detections(im, boxes, 3)
         cv2.imshow('video', im)
         if 0xFF & cv2.waitKey(5) == 27:
             break

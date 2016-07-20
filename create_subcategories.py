@@ -41,9 +41,6 @@ class ImageClustering():
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10000, 1e-8)
         attempts = 10
         compactness, bestLabels, centers = cv2.kmeans(hog_features, self.K, criteria, attempts, cv2.KMEANS_RANDOM_CENTERS)
-        print compactness
-        print bestLabels
-        print centers
 
         for i in range(self.K):
             os.makedirs(os.path.join(self.kmeans_path, str(i)))
@@ -54,7 +51,7 @@ class ImageClustering():
 
 if __name__ == '__main__':
     database_path = 'autorally_database'
-    c = ImageClustering(os.path.join(database_path, 'HOGImages/NegSubcategories'), os.path.join(database_path, 'HOGImages/Neg'), 2)
+    c = ImageClustering(os.path.join(database_path, 'HOGImages/NegSubcategories'), os.path.join(database_path, 'HOGImages/Neg'), 1)
     c.cluster()
-    c = ImageClustering(os.path.join(database_path, 'HOGImages/PosSubcategories'), os.path.join(database_path, 'HOGImages/Pos'), 6)
+    c = ImageClustering(os.path.join(database_path, 'HOGImages/PosSubcategories'), os.path.join(database_path, 'HOGImages/Pos'), 9)
     c.cluster()

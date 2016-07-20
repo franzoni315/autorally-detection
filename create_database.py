@@ -15,8 +15,11 @@ class AutorallyDatabase():
         # Generating positive examples
         files = sorted(os.listdir(os.path.join(self.database_path, 'Annotations')))
         index = [os.path.splitext(x)[0] for x in files]
-        for ix in index:
-            self.load_pascal_annotation(ix, self.database_path, self.pos_list)
+        train_files = os.path.join(self.database_path, 'ImageSets/Main', 'car_trainval.txt')
+        with open(train_files, 'w') as f:
+            for ix in index:
+                self.load_pascal_annotation(ix, self.database_path, self.pos_list)
+                f.write(ix + ' 1\n')
         # Generating negative examples
         negative_filename = os.path.join(self.voc_database, 'ImageSets/Main', 'car_trainval.txt')
         with open(negative_filename, "r") as f:
@@ -40,26 +43,26 @@ class AutorallyDatabase():
 
 
         # Generating train and test sets and writing them to files
-        train_files = os.path.join(self.database_path, 'ImageSets/Main', 'train.txt')
-        test_files = os.path.join(self.database_path, 'ImageSets/Main', 'test.txt')
-        random.shuffle(self.pos_list)
-        random.shuffle(self.neg_list)
-        n_pos_train = int(0.9*len(self.pos_list))
-        n_neg_train = int(0.75*len(self.neg_list))
-        pos_train = self.pos_list[0:n_pos_train]
-        pos_test = self.pos_list[n_pos_train:]
-        neg_train = self.neg_list[0:n_neg_train]
-        neg_test = self.neg_list[n_neg_train:]
-        with open(train_files, 'w') as f:
-            for ix in pos_train:
-                f.write(ix + ' 1\n')
-            for ix in neg_train:
-                f.write(ix + ' -1\n')
-        with open(test_files, 'w') as f:
-            for ix in pos_test:
-                f.write(ix + ' 1\n')
-            for ix in neg_test:
-                f.write(ix + ' -1\n')
+        # train_files = os.path.join(self.database_path, 'ImageSets/Main', 'train.txt')
+        # test_files = os.path.join(self.database_path, 'ImageSets/Main', 'test.txt')
+        # random.shuffle(self.pos_list)
+        # random.shuffle(self.neg_list)
+        # n_pos_train = int(0.9*len(self.pos_list))
+        # # n_neg_train = int(0.75*len(self.neg_list))
+        # pos_train = self.pos_list[0:n_pos_train]
+        # pos_test = self.pos_list[n_pos_train:]
+        # # neg_train = self.neg_list[0:n_neg_train]
+        # # neg_test = self.neg_list[n_neg_train:]
+        # with open(train_files, 'w') as f:
+        #     for ix in pos_train:
+        #         f.write(ix + ' 1\n')
+        #     # for ix in neg_train:
+        #     #     f.write(ix + ' -1\n')
+        # with open(test_files, 'w') as f:
+        #     for ix in pos_test:
+        #         f.write(ix + ' 1\n')
+        #     # for ix in neg_test:
+        #     #     f.write(ix + ' -1\n')
 
 
     def load_pascal_annotation(self, index, database_path, index_list):
