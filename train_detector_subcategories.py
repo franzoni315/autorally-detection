@@ -21,7 +21,7 @@ class AutorallyTrainerMultiClass:
         self.labels = []
         self.neg_imgs = []
         self.imgs = []
-        self.svm_ = SGDClassifier(verbose=False, n_iter=100, n_jobs=8, epsilon=1e-8, loss='log', class_weight='balanced')
+        self.svm_ = SGDClassifier(verbose=False, n_iter=100, n_jobs=8, epsilon=1e-8, loss='hinge', class_weight='balanced')
         # self.svm_ = svm.LinearSVC(C=4, tol=1e-6, max_iter=1e4, verbose=True)
         # self.svm_ = svm.SVC(C=1, tol=1e-6)
         self.win_size = (96, 48)
@@ -196,21 +196,42 @@ class AutorallyTrainerMultiClass:
         n_neg_wrong = 0
         for i, im in enumerate(self.test_imgs):
             x = np.asarray(self.hog.compute(im), dtype=np.float32)
-            score = self.svm_.predict_proba(np.transpose(x))
-            pos_prob = np.sum(score[0,:self.Kpos])
-            neg_prob = np.sum(score[0, self.Kpos:])
+            # score = self.svm_.predict_proba(np.transpose(x))
+            score = self.svm_.decision_function(np.transpose(x))[0]
+            neg_weight = 0
+            for j in range(self.Kpos, self.Kpos + self.Kneg):
+                if score[j] > 0:
+                    neg_weight += score[j]
+            pos_weight = 0
+            for j in range(self.Kpos):
+                if score[j] > 0:
+                    pos_weight += score[j]
 
-            # prediction = self.svm_.predict(np.transpose(x))
             if self.test_labels[i] < self.Kpos:
-                if pos_prob > neg_prob:
+                if pos_weight > neg_weight:
                     n_pos_right += 1
                 else:
                     n_pos_wrong += 1
             else:
-                if pos_prob < neg_prob:
+                if pos_weight < neg_weight:
                     n_neg_right += 1
                 else:
                     n_neg_wrong += 1
+
+            # pos_prob = np.sum(score[0,:self.Kpos])
+            # neg_prob = np.sum(score[0, self.Kpos:])
+            #
+            # # prediction = self.svm_.predict(np.transpose(x))
+            # if self.test_labels[i] < self.Kpos:
+            #     if pos_prob > neg_prob:
+            #         n_pos_right += 1
+            #     else:
+            #         n_pos_wrong += 1
+            # else:
+            #     if pos_prob < neg_prob:
+            #         n_neg_right += 1
+            #     else:
+            #         n_neg_wrong += 1
 
         print 'Confusion matrix on test set:'
         print '%4d' % n_pos_right, '%4d' % n_neg_wrong

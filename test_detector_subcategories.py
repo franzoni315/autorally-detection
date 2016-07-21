@@ -1,9 +1,15 @@
 #!/usr/bin/python
 
-import cv2, os, sys
+import cv2, os, sys, time
 import numpy as np
 from sklearn import svm
 from sklearn.externals import joblib
+from multiprocessing import Process, Queue
+
+
+
+sys.path.append("/home/igor/Documents/numpy-opencv-converter/build")
+import np_opencv_module as npom
 
 class AutorallyDetectorMultiClass:
     def __init__(self, svm_file):
@@ -18,29 +24,47 @@ class AutorallyDetectorMultiClass:
         self.neg_subcategories_folders = sorted(os.listdir(self.neg_subcategories_path))
         self.Kneg = len(self.neg_subcategories_folders)
         self.win_size = (96,48)
-        block_size = (16,16)
-        block_stride = (8,8)
-        cell_size = (8,8)
-        nbins = 9
-        self.hog = cv2.HOGDescriptor(self.win_size, block_size, block_stride, cell_size, nbins)
+        self.block_size = (16,16)
+        self.block_stride = (8,8)
+        self.cell_size = (8,8)
+        self.nbins = 9
+        self.hog = cv2.HOGDescriptor(self.win_size, self.block_size, self.block_stride, self.cell_size, self.nbins)
 
     def detectMultiScale(self, img):
+        queue = Queue()
+        Pros = []
         found = []
         weights = []
         gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         scales = np.linspace(1,6,10)
-        for scale in scales:
-            found_, weights_ = self.detect(gray_img, scale)
+        for i,scale in enumerate(scales):
+            p = Process(target=self.detect, args=(gray_img, scale, i, queue))
+            Pros.append(p)
+            p.start()
+
+        for t in Pros:
+            t.join()
+        while not queue.empty():
+            found_, weights_ = queue.get()
             found += found_
             weights += weights_
+        # for scale in scales:
+        #     found_, weights_ = self.detect(gray_img, scale)
+        #     found += found_
+        #     weights += weights_
         return found, weights
 
-    def detect(self, img, scale=1, win_stride=(32,16)):
+    def detect(self, img, scale, i=0, queue=[], win_stride=(32,16)):
         found = []
         weights = []
         rows = int(img.shape[0]/scale)
         cols = int(img.shape[1]/scale)
-        win_stride = (int(np.floor(win_stride[0]/np.sqrt(scale))), int(np.floor(win_stride[1]/np.sqrt(scale))))
+        win_stride = [int(np.ceil(win_stride[0]/np.sqrt(scale))), int(np.ceil(win_stride[1]/np.sqrt(scale)))]
+        win_stride = [(win_stride[0]/8)*8, (win_stride[1]/8)*8]
+        if win_stride[0] == 0:
+            win_stride[0] = 8
+        if win_stride[1] == 0:
+            win_stride[1] = 8
         img = cv2.resize(img, (cols,rows))
         width_blocks = 0
         height_blocks = 0
@@ -52,42 +76,46 @@ class AutorallyDetectorMultiClass:
         while height <= rows:
             height += win_stride[1]
             height_blocks += 1
-        features = self.hog.compute(img, win_stride)
+
+
+        features = self.hog.compute(img, (win_stride[0],win_stride[1]))
+        # features = npom.test_ocl(img, np.array(win_stride))
         features = features.reshape((features.size/self.hog.getDescriptorSize(), self.hog.getDescriptorSize()))
-        # predictions = self.svm_.decision_function(features)
-        predictions = self.svm_.predict_proba(features)
+
+        predictions = self.svm_.decision_function(features)
+
+        # predictions = self.svm_.predict_proba(features)
         for i in range(height_blocks * width_blocks):
             col = i % width_blocks
             row = i / width_blocks
             prediction = predictions[i]
-            pos_prob = np.sum(prediction[:self.Kpos])
-            neg_prob = np.sum(prediction[self.Kpos:])
-            if pos_prob > neg_prob:
-                x = int(col*win_stride[0]*scale)
-                y = int(row*win_stride[1]*scale)
-                w = int(self.win_size[0]*scale)
-                h = int(self.win_size[1]*scale)
-                found.append([x, y, w, h])
-                weights.append(prediction[pos_prob])
-            # neg_weight = 0
-            # for j in range(self.Kpos, self.Kpos + self.Kneg):
-            #     if prediction[j] > 0:
-            #         neg_weight += prediction[j]
-            # if neg_weight > 0:
-            #     continue
-            # pos_weight = 0
-            # for j in range(self.Kpos):
-            #     if prediction[j] > 0:
-            #         pos_weight += prediction[j]
-            # if pos_weight > 0.2:
-            #     print prediction
+            # pos_prob = np.sum(prediction[:self.Kpos])
+            # neg_prob = np.sum(prediction[self.Kpos:])
+            # if pos_prob > neg_prob:
             #     x = int(col*win_stride[0]*scale)
             #     y = int(row*win_stride[1]*scale)
             #     w = int(self.win_size[0]*scale)
             #     h = int(self.win_size[1]*scale)
             #     found.append([x, y, w, h])
-            #     weights.append(pos_weight)
+            #     weights.append(prediction[pos_prob])
+            neg_weight = 0
+            for j in range(self.Kpos, self.Kpos + self.Kneg):
+                if prediction[j] > 0:
+                    neg_weight += prediction[j]
+            pos_weight = 0
+            for j in range(self.Kpos):
+                if prediction[j] > 0:
+                    pos_weight += prediction[j]
+            if pos_weight > neg_weight:
+                x = int(col*win_stride[0]*scale)
+                y = int(row*win_stride[1]*scale)
+                w = int(self.win_size[0]*scale)
+                h = int(self.win_size[1]*scale)
+                found.append([x, y, w, h])
+                weights.append(pos_weight)
 
+        if (weights is not []) and (queue):
+            queue.put((found,weights))
         return found, weights
 
 def draw_detections(img, rects, thickness = 1):
@@ -153,17 +181,18 @@ def non_max_suppression_fast(boxes, weights, overlapThresh):
     return boxes[pick].astype("int")
 
 if __name__ == '__main__':
-    detector = AutorallyDetectorMultiClass('svm.pkl')
-    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/autorally_database/Videos/0003.mp4")
-    # capture = cv2.VideoCapture("/home/igor/Downloads/test.mp4")
+    detector = AutorallyDetectorMultiClass('svm_fine_tune.pkl')
+    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/autorally_database/Videos/0004.mp4")
 
     cv2.namedWindow('video')
     while True:
         ret, im = capture.read()
-
+        start_time = time.time()
         im = cv2.resize(im, (96*8, 48*12))
         found, w = detector.detectMultiScale(im)
         boxes = non_max_suppression_fast(np.asarray(found), np.asarray(w), 0.3)
+        elapsed_time = time.time() - start_time
+        print elapsed_time
         draw_detections(im, boxes)
         cv2.imshow('video', im)
         if 0xFF & cv2.waitKey(1) == 27:
