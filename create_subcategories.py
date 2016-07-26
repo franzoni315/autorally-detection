@@ -53,5 +53,5 @@ if __name__ == '__main__':
     database_path = 'autorally_database'
     c = ImageClustering(os.path.join(database_path, 'HOGImages/NegSubcategories'), os.path.join(database_path, 'HOGImages/Neg'), 1)
     c.cluster()
-    c = ImageClustering(os.path.join(database_path, 'HOGImages/PosSubcategories'), os.path.join(database_path, 'HOGImages/Pos'), 9)
+    c = ImageClustering(os.path.join(database_path, 'HOGImages/PosSubcategories'), os.path.join(database_path, 'HOGImages/Pos'), 4)
     c.cluster()

@@ -1,9 +1,11 @@
 #!/usr/bin/python
-
-import cv2, os, yaml, sys
+import sys
+sys.path.insert(1, "/home/igor/Documents/opencv-3.1.0/build/lib")
+import cv2, os, yaml
 import numpy as np
 from sklearn import svm
 from sklearn.linear_model import SGDClassifier
+from sklearn.decomposition import PCA, RandomizedPCA, TruncatedSVD
 from sklearn.externals import joblib
 from random import shuffle
 from test_detector_subcategories import AutorallyDetectorMultiClass
@@ -22,8 +24,6 @@ class AutorallyTrainerMultiClass:
         self.neg_imgs = []
         self.imgs = []
         self.svm_ = SGDClassifier(verbose=False, n_iter=100, n_jobs=8, epsilon=1e-8, loss='hinge', class_weight='balanced')
-        # self.svm_ = svm.LinearSVC(C=4, tol=1e-6, max_iter=1e4, verbose=True)
-        # self.svm_ = svm.SVC(C=1, tol=1e-6)
         self.win_size = (96, 48)
         self.block_size = (16, 16)
         self.block_stride = (8, 8)
@@ -36,6 +36,7 @@ class AutorallyTrainerMultiClass:
         self.Kneg = len(self.neg_subcategories_folders)
         self.features = []
         self.labels = []
+        self.pca = RandomizedPCA(n_components=250)
 
         self.get_database()
 
@@ -88,8 +89,14 @@ class AutorallyTrainerMultiClass:
             x = np.asarray(self.hog.compute(im), dtype=np.float32)
             self.features[i, :] = np.transpose(x)
             self.labels[i] = self.train_labels[i]
+
+        self.pca.fit(self.features)
+        print 'Number of PCA components ', self.pca.n_components
+        # pca_features = self.pca.transform(self.features)
+
         self.svm_.fit(self.features, self.labels)
         joblib.dump(self.svm_, 'svm.pkl')
+        joblib.dump(self.pca, 'pca.pkl')
 
         self.testing()
 
@@ -144,6 +151,7 @@ class AutorallyTrainerMultiClass:
                 features[i, :] = np.transpose(x)
                 labels[i] = negatives_labels[i]
             self.features = np.concatenate((self.features, features))
+            # pca_features = self.pca.transform(self.features)
             self.labels = np.concatenate((self.labels, labels))
             self.svm_.fit(self.features, self.labels)
             joblib.dump(self.svm_, 'svm_fine_tune.pkl')
@@ -196,6 +204,7 @@ class AutorallyTrainerMultiClass:
         n_neg_wrong = 0
         for i, im in enumerate(self.test_imgs):
             x = np.asarray(self.hog.compute(im), dtype=np.float32)
+            # pca_x = self.pca.transform(np.transpose(x))
             # score = self.svm_.predict_proba(np.transpose(x))
             score = self.svm_.decision_function(np.transpose(x))[0]
             neg_weight = 0
