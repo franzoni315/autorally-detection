@@ -1,10 +1,11 @@
 #!/usr/bin/python
 
-import os, sys, time
+import os
+import sys
+import time
 import numpy as np
 from sklearn.externals import joblib
-sys.path.insert(1, "/home/igor/Documents/opencv-3.1.0/build/lib")
-sys.path.append("/home/igor/Documents/numpy-opencv-converter/build")
+sys.path.insert(1, "/home/igor/Documents/opencv-3.1.0/build/lib") # uncomment this if you want to use a special opencv build
 import cv2
 
 
@@ -64,7 +65,6 @@ class AutorallyDetectorMultiClass:
             height_blocks += 1
 
         features = self.hog.compute(img, (win_stride[0],win_stride[1]))
-        # features = npom.test_ocl(img, np.array(win_stride))
         features = features.reshape((features.size/self.hog.getDescriptorSize(), self.hog.getDescriptorSize()))
         predictions = self.svm_.decision_function(features)
 
@@ -159,8 +159,8 @@ def non_max_suppression_fast(boxes, weights, overlapThresh):
 if __name__ == '__main__':
     print cv2.__version__
 
-    detector = AutorallyDetectorMultiClass('svm1.pkl')
-    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/TestVideos/2.mp4")
+    detector = AutorallyDetectorMultiClass('svm.pkl')
+    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/TestVideos/1.mp4")
 
     cv2.namedWindow('video')
     while True:

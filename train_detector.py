@@ -1,11 +1,10 @@
 #!/usr/bin/python
 import sys
 sys.path.insert(1, "/home/igor/Documents/opencv-3.1.0/build/lib")
-import cv2, os, yaml
+import cv2
+import os
 import numpy as np
-from sklearn import svm
 from sklearn.linear_model import SGDClassifier
-from sklearn.decomposition import PCA, RandomizedPCA, TruncatedSVD
 from sklearn.externals import joblib
 from random import shuffle
 from test_detector import AutorallyDetectorMultiClass
@@ -17,12 +16,7 @@ class AutorallyTrainerMultiClass:
         self.database_path = 'autorally_database'
         self.pos_subcategories_path = os.path.join('database/PosSubcategories')
         self.neg_subcategories_path = os.path.join('database/NegSubcategories')
-        self.save_model_name = os.path.join('svm')
-        self.pos_imgs = []
-        self.labels = []
-        self.neg_imgs = []
-        self.imgs = []
-        self.svm_ = SGDClassifier(verbose=True, n_iter=100, n_jobs=8, epsilon=1e-8, loss='hinge', class_weight='balanced', warm_start=True)
+        self.svm_ = SGDClassifier(verbose=True, n_iter=200, n_jobs=8, epsilon=1e-8, loss='hinge', class_weight='balanced', warm_start=True)
         self.win_size = (96, 48)
         self.block_size = (16, 16)
         self.block_stride = (8, 8)
@@ -33,12 +27,17 @@ class AutorallyTrainerMultiClass:
         self.Kpos = len(self.pos_subcategories_folders)
         self.neg_subcategories_folders = sorted(os.listdir(self.neg_subcategories_path))
         self.Kneg = len(self.neg_subcategories_folders)
-        self.features = []
-        self.labels = []
+        self.train_features = []
+        self.train_labels = []
+        self.test_features = []
+        self.test_labels = []
+        self.class_of_interest = 'car'
 
         self.get_database()
 
     def get_database(self):
+        imgs = []
+        labels = []
         # positive subcategories
         for i in range(self.Kpos):
             subcategory_path = os.path.join(self.pos_subcategories_path, str(i))
@@ -48,8 +47,8 @@ class AutorallyTrainerMultiClass:
                 img = cv2.imread(os.path.join(subcategory_path, name))
                 if img is not None:
                     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                    self.pos_imgs.append(img_gray)
-                    self.labels.append(i)
+                    imgs.append(img_gray)
+                    labels.append(i)
                 else:
                     print "File " + os.path.join(subcategory_path, name) + " not found. Closing program..."
                     sys.exit(0)
@@ -62,47 +61,50 @@ class AutorallyTrainerMultiClass:
                 img = cv2.imread(os.path.join(subcategory_path, name))
                 if img is not None:
                     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                    self.neg_imgs.append(img_gray)
-                    self.labels.append(self.Kpos + i)
+                    imgs.append(img_gray)
+                    labels.append(self.Kpos + i)
                 else:
                     print "File " + os.path.join(subcategory_path, name) + " not found. Closing program..."
                     sys.exit(0)
-        self.imgs = self.pos_imgs + self.neg_imgs
-        rand_mask = range(len(self.imgs))
+
+        rand_mask = range(len(imgs))
         shuffle(rand_mask)
-        train_mask = rand_mask[:int(0.9 * len(self.imgs))]
-        test_mask = rand_mask[int(0.9 * len(self.imgs)):]
-        self.train_imgs = [self.imgs[i] for i in train_mask]
-        self.test_imgs = [self.imgs[i] for i in test_mask]
-        self.train_labels = [self.labels[i] for i in train_mask]
-        self.test_labels = [self.labels[i] for i in test_mask]
-        print 'Train set size ', len(self.train_imgs)
-        print 'Test set size ', len(self.test_imgs)
+        train_mask = rand_mask[:int(0.9 * len(imgs))]
+        test_mask = rand_mask[int(0.9 * len(imgs)):]
+        train_imgs = [imgs[i] for i in train_mask]
+        test_imgs = [imgs[i] for i in test_mask]
+        train_labels = [labels[i] for i in train_mask]
+        test_labels = [labels[i] for i in test_mask]
+
+        feature_size = self.hog.getDescriptorSize()
+        self.train_features = np.zeros((len(train_imgs), feature_size), dtype=np.float32)
+        self.train_labels = np.zeros(len(train_labels), dtype=np.int)
+        for i, im in enumerate(train_imgs):
+            x = np.asarray(self.hog.compute(im), dtype=np.float32)
+            self.train_features[i, :] = np.transpose(x)
+            self.train_labels[i] = train_labels[i]
+
+        self.test_features = np.zeros((len(test_imgs), feature_size), dtype=np.float32)
+        self.test_labels = np.zeros(len(test_labels), dtype=np.int)
+        for i, im in enumerate(test_imgs):
+            x = np.asarray(self.hog.compute(im), dtype=np.float32)
+            self.test_features[i, :] = np.transpose(x)
+            self.test_labels[i] = test_labels[i]
+
+        print 'Train set size ', len(self.train_features)
+        print 'Test set size ', len(self.test_features)
 
     def train(self):
-        feature_size = self.hog.getDescriptorSize()
-        self.features = np.zeros((len(self.train_imgs), feature_size), dtype=np.float32)
-        self.labels = np.zeros(len(self.train_labels), dtype=np.int)
-        for i, im in enumerate(self.train_imgs):
-            x = np.asarray(self.hog.compute(im), dtype=np.float32)
-            self.features[i, :] = np.transpose(x)
-            self.labels[i] = self.train_labels[i]
-        del self.imgs, self.train_imgs, self.train_labels
-        print 'Training with ', self.features.shape[0], ' features...'
-        self.svm_.fit(self.features, self.labels)
+        print 'Training with ', self.train_features.shape[0], ' features...'
+        self.svm_.fit(self.train_features, self.train_labels)
         joblib.dump(self.svm_, 'svm.pkl', compress=1)
-
         self.testing()
         for i in range(2):
             self.hard_negative_training(self.database_path, 'svm.pkl', 'svm.pkl')
-
             self.testing()
 
         # self.hard_negative_training(self.voc_database, 'svm1.pkl', 'svm2.pkl')
-        #
         # self.testing()
-
-
 
     def hard_negative_training(self, database_path, svm, save):
         detector = AutorallyDetectorMultiClass(svm)
@@ -147,11 +149,11 @@ class AutorallyTrainerMultiClass:
                 features[i, :] = np.transpose(x)
                 labels[i] = negatives_labels[i]
 
-            self.features = np.concatenate((self.features, features))
-            self.labels = np.concatenate((self.labels, labels))
+            self.train_features = np.concatenate((self.train_features, features))
+            self.train_labels = np.concatenate((self.train_labels, labels))
             del negatives_labels, negatives_list, features, labels
-            print 'Training with ', self.features.shape[0], ' features...'
-            self.svm_.fit(self.features, self.labels)
+            print 'Training with ', self.train_features.shape[0], ' features...'
+            self.svm_.fit(self.train_features, self.train_labels)
             joblib.dump(self.svm_, save, compress=1)
 
     def inter_over_union(self, a, b):
@@ -171,7 +173,6 @@ class AutorallyTrainerMultiClass:
 
         return iou
 
-
     def load_pascal_annotation(self, index, database_path):
         xml_name = os.path.join(database_path, 'Annotations', index + '.xml')
         file_name = os.path.join(database_path, 'JPEGImages', index + '.jpg')
@@ -187,7 +188,7 @@ class AutorallyTrainerMultiClass:
         car_boxes = []
         for obj in objs:
             # Load object bounding boxes into a data frame. Make pixel indexes 0-based
-            if (get_data_from_tag(obj, 'name')) == 'car':
+            if (get_data_from_tag(obj, 'name')) == self.class_of_interest:
                 x1 = (int(get_data_from_tag(obj, 'xmin')) - 1)
                 y1 = (int(get_data_from_tag(obj, 'ymin')) - 1)
                 x2 = (int(get_data_from_tag(obj, 'xmax')) - 1)
@@ -200,9 +201,8 @@ class AutorallyTrainerMultiClass:
         n_pos_wrong = 0
         n_neg_right = 0
         n_neg_wrong = 0
-        for i, im in enumerate(self.test_imgs):
-            x = np.asarray(self.hog.compute(im), dtype=np.float32)
-            score = self.svm_.decision_function(np.transpose(x))[0]
+        for i, im in enumerate(self.test_features):
+            score = self.svm_.decision_function(np.reshape(self.test_features[i, :], (1,self.hog.getDescriptorSize())))[0]
             neg_weight = 0
             for j in range(self.Kpos, self.Kpos + self.Kneg):
                 if score[j] > 0:

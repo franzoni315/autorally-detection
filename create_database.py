@@ -1,8 +1,7 @@
 #!/usr/bin/python
 import cv2
 import os
-import random
-import  shutil
+import shutil
 from xml.dom import minidom
 from create_subcategories import ImageClustering
 
@@ -10,8 +9,6 @@ class AutorallyDatabase():
     def __init__(self):
         self.cls_of_interest = 'car'
         self.counter = 1
-        self.pos_list = []
-        self.neg_list = []
         self.voc_database = '/home/igor/Documents/caffe/data/VOCdevkit/VOC2007/'
         self.database_path = 'autorally_database'
         self.win_size = (96,48)
@@ -138,48 +135,6 @@ class AutorallyDatabase():
         flip_img = cv2.flip(res_img, 1)
         cv2.imwrite(save_name, flip_img)
 
-    def load_negative_annotation(self, index, voc_database_path, autorally_database_path, index_list):
-        """
-        This code is borrowed from Ross Girshick's FAST-RCNN code
-        (https://github.com/rbgirshick/fast-rcnn).
-        It parses the PASCAL .xml metadata files.
-        See publication for further details: (http://arxiv.org/abs/1504.08083).
-
-        Thanks Ross!
-
-        """
-
-        xml_name = os.path.join(voc_database_path, 'Annotations', index + '.xml')
-        file_name = os.path.join(voc_database_path, 'JPEGImages', index + '.jpg')
-        save_name = os.path.join('database/Neg', '%05d' % self.counter + '.jpg')
-        index_list.append('%05d' % self.counter)
-        self.counter += 1
-
-
-        def get_data_from_tag(node, tag):
-            return node.getElementsByTagName(tag)[0].childNodes[0].data
-
-        with open(xml_name) as f:
-            data = minidom.parseString(f.read())
-
-        objs = data.getElementsByTagName('object')
-        img = cv2.imread(file_name)
-        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        for obj in objs:
-            # Load object bounding boxes into a data frame. Make pixel indexes 0-based
-            x1 = (int(get_data_from_tag(obj, 'xmin')) - 1)
-            y1 = (int(get_data_from_tag(obj, 'ymin')) - 1)
-            x2 = (int(get_data_from_tag(obj, 'xmax')) - 1)
-            y2 = (int(get_data_from_tag(obj, 'ymax')) - 1)
-
-
-            crop_img = gray_img[y1:y2, x1:x2]
-            res_img = cv2.resize(crop_img, self.win_size)
-            cv2.imwrite(save_name, res_img)
-            save_name = os.path.join('database/Neg', '%05d' % self.counter + '.jpg')
-            index_list.append('%05d' % self.counter)
-            self.counter += 1
-
     def crop(self, img, x1, y1, x2, y2):
         rows, cols = img.shape
         width = x2 - x1
@@ -223,10 +178,9 @@ class AutorallyDatabase():
 if __name__ == '__main__':
     autorally_database = AutorallyDatabase()
     autorally_database.create_database()
-    database_path = 'database'
-    c = ImageClustering(os.path.join(database_path, 'NegSubcategories'), os.path.join(database_path, 'Neg'), 1)
+    c = ImageClustering('database/NegSubcategories', 'database/Neg', 1)
     c.cluster()
-    c = ImageClustering(os.path.join(database_path, 'PosSubcategories'), os.path.join(database_path, 'Pos'), 8)
+    c = ImageClustering('database/PosSubcategories', 'database/Pos', 8)
     c.cluster()
 
 

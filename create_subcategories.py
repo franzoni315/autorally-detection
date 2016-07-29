@@ -1,5 +1,7 @@
 #!/usr/bin/python
-import cv2, os, sys, shutil
+import cv2
+import os
+import shutil
 import numpy as np
 
 class ImageClustering():
@@ -46,8 +48,7 @@ class ImageClustering():
             cv2.imwrite(os.path.join(self.kmeans_path, str(bestLabels[i][0]), self.files[i]), img)
 
 if __name__ == '__main__':
-    database_path = 'database'
-    c = ImageClustering(os.path.join(database_path, 'NegSubcategories'), os.path.join(database_path, 'Neg'), 1)
+    c = ImageClustering('database/NegSubcategories', 'database/Neg', 1)
     c.cluster()
-    c = ImageClustering(os.path.join(database_path, 'PosSubcategories'), os.path.join(database_path, 'Pos'), 8)
+    c = ImageClustering('database/PosSubcategories', 'database/Pos', 8)
     c.cluster()
