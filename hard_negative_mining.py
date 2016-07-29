@@ -2,7 +2,7 @@
 
 import cv2, os
 import numpy as np
-from test_detector_subcategories import AutorallyDetectorMultiClass, non_max_suppression_fast
+from test_detector import AutorallyDetectorMultiClass, non_max_suppression_fast
 
 class AutorallyHardNegativeMining:
     def __init__(self):
