@@ -15,16 +15,14 @@ class AutorallyTrainerMultiClass:
     def __init__(self):
         self.voc_database = '/home/igor/Documents/caffe/data/VOCdevkit/VOC2007/'
         self.database_path = 'autorally_database'
-        self.img_path = os.path.join(self.database_path, 'HOGImages')
-        self.pos_subcategories_path = os.path.join(self.img_path, 'PosSubcategories')
-        self.neg_subcategories_path = os.path.join(self.img_path, 'NegSubcategories')
+        self.pos_subcategories_path = os.path.join('database/PosSubcategories')
+        self.neg_subcategories_path = os.path.join('database/NegSubcategories')
         self.save_model_name = os.path.join('svm')
         self.pos_imgs = []
         self.labels = []
         self.neg_imgs = []
         self.imgs = []
         self.svm_ = SGDClassifier(verbose=True, n_iter=100, n_jobs=8, epsilon=1e-8, loss='hinge', class_weight='balanced', warm_start=True)
-        # self.svm_ = svm.LinearSVC(verbose=True, class_weight='balanced', max_iter=10000)
         self.win_size = (96, 48)
         self.block_size = (16, 16)
         self.block_stride = (8, 8)
@@ -91,7 +89,7 @@ class AutorallyTrainerMultiClass:
             self.labels[i] = self.train_labels[i]
         print 'Training with ', self.features.shape[0], ' features...'
         self.svm_.fit(self.features, self.labels)
-        joblib.dump(self.svm_, 'svm.pkl')
+        joblib.dump(self.svm_, 'svm.pkl', compress=1)
 
         self.testing()
 
@@ -99,9 +97,9 @@ class AutorallyTrainerMultiClass:
 
         self.testing()
 
-        self.hard_negative_training(self.voc_database, 'svm1.pkl', 'svm2.pkl')
-
-        self.testing()
+        # self.hard_negative_training(self.voc_database, 'svm1.pkl', 'svm2.pkl')
+        #
+        # self.testing()
 
 
 
@@ -151,7 +149,7 @@ class AutorallyTrainerMultiClass:
             self.labels = np.concatenate((self.labels, labels))
             print 'Training with ', self.features.shape[0], ' features...'
             self.svm_.fit(self.features, self.labels)
-            joblib.dump(self.svm_, save)
+            joblib.dump(self.svm_, save, compress=1)
 
     def inter_over_union(self, a, b):
         x1 = max(a[0], b[0])

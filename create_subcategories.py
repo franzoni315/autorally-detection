@@ -16,14 +16,10 @@ class ImageClustering():
         self.hog = cv2.HOGDescriptor(self.win_size, self.block_size, self.block_stride, self.cell_size, self.nbins)
         self.feature_size = self.hog.getDescriptorSize()
         self.K = K
-        # remove old folders in kmeans_path
-        for the_file in os.listdir(self.kmeans_path):
-            file_path = os.path.join(self.kmeans_path, the_file)
-            try:
-                if os.path.isdir(file_path):
-                    shutil.rmtree(file_path)
-            except Exception as e:
-                print(e)
+        if os.path.isdir(kmeans_path):
+            print 'Removing {} folder...'.format(kmeans_path)
+            shutil.rmtree(kmeans_path)
+        os.makedirs(kmeans_path)
     def cluster(self):
         imgs = []
         for i, file in enumerate(self.files):
@@ -50,8 +46,8 @@ class ImageClustering():
             cv2.imwrite(os.path.join(self.kmeans_path, str(bestLabels[i][0]), self.files[i]), img)
 
 if __name__ == '__main__':
-    database_path = 'autorally_database'
-    c = ImageClustering(os.path.join(database_path, 'HOGImages/NegSubcategories'), os.path.join(database_path, 'HOGImages/Neg'), 1)
+    database_path = 'database'
+    c = ImageClustering(os.path.join(database_path, 'NegSubcategories'), os.path.join(database_path, 'Neg'), 1)
     c.cluster()
-    c = ImageClustering(os.path.join(database_path, 'HOGImages/PosSubcategories'), os.path.join(database_path, 'HOGImages/Pos'), 8)
+    c = ImageClustering(os.path.join(database_path, 'PosSubcategories'), os.path.join(database_path, 'Pos'), 8)
     c.cluster()

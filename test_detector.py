@@ -2,12 +2,9 @@
 
 import os, sys, time
 import numpy as np
-from sklearn import svm
 from sklearn.externals import joblib
-from multiprocessing import Process, Queue
 sys.path.insert(1, "/home/igor/Documents/opencv-3.1.0/build/lib")
 sys.path.append("/home/igor/Documents/numpy-opencv-converter/build")
-import np_opencv_module as npom
 import cv2
 
 
@@ -162,8 +159,8 @@ def non_max_suppression_fast(boxes, weights, overlapThresh):
 if __name__ == '__main__':
     print cv2.__version__
 
-    detector = AutorallyDetectorMultiClass('svm2.pkl')
-    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/TestVideos/2.mp4")
+    detector = AutorallyDetectorMultiClass('svm1.pkl')
+    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/TestVideos/1.mp4")
 
     cv2.namedWindow('video')
     while True:
