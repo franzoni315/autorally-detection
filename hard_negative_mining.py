@@ -38,9 +38,9 @@ def draw_detections(img, rects, thickness = 1):
         cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), thickness)
 
 if __name__ == '__main__':
-    detector = AutorallyDetectorMultiClass()
+    detector = AutorallyDetectorMultiClass('svm_fine_tune.pkl')
     negative_miner = AutorallyHardNegativeMining()
-    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/autorally_database/Videos/left_camera_image_color_compressed2.mp4")
+    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/TestVideos/2.mp4")
     cv2.namedWindow('video')
     while True:
         ret, im = capture.read()

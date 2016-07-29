@@ -23,7 +23,8 @@ class AutorallyTrainerMultiClass:
         self.labels = []
         self.neg_imgs = []
         self.imgs = []
-        self.svm_ = SGDClassifier(verbose=False, n_iter=100, n_jobs=8, epsilon=1e-8, loss='hinge', class_weight='balanced')
+        self.svm_ = SGDClassifier(verbose=True, n_iter=100, n_jobs=8, epsilon=1e-8, loss='hinge', class_weight='balanced', warm_start=True)
+        # self.svm_ = svm.LinearSVC(verbose=True, class_weight='balanced', max_iter=10000)
         self.win_size = (96, 48)
         self.block_size = (16, 16)
         self.block_stride = (8, 8)
@@ -36,7 +37,6 @@ class AutorallyTrainerMultiClass:
         self.Kneg = len(self.neg_subcategories_folders)
         self.features = []
         self.labels = []
-        self.pca = RandomizedPCA(n_components=250)
 
         self.get_database()
 
@@ -89,27 +89,24 @@ class AutorallyTrainerMultiClass:
             x = np.asarray(self.hog.compute(im), dtype=np.float32)
             self.features[i, :] = np.transpose(x)
             self.labels[i] = self.train_labels[i]
-
-        self.pca.fit(self.features)
-        print 'Number of PCA components ', self.pca.n_components
-        # pca_features = self.pca.transform(self.features)
-
+        print 'Training with ', self.features.shape[0], ' features...'
         self.svm_.fit(self.features, self.labels)
         joblib.dump(self.svm_, 'svm.pkl')
-        joblib.dump(self.pca, 'pca.pkl')
 
         self.testing()
 
-        self.hard_negative_training(self.voc_database)
+        self.hard_negative_training(self.database_path, 'svm.pkl', 'svm1.pkl')
 
         self.testing()
 
-        self.hard_negative_training(self.database_path)
+        self.hard_negative_training(self.voc_database, 'svm1.pkl', 'svm2.pkl')
 
         self.testing()
 
-    def hard_negative_training(self, database_path):
-        detector = AutorallyDetectorMultiClass('svm.pkl')
+
+
+    def hard_negative_training(self, database_path, svm, save):
+        detector = AutorallyDetectorMultiClass(svm)
         negatives_list = []
         negatives_labels = []
         negative_filename = os.path.join(database_path, 'ImageSets/Main', 'car_trainval.txt')
@@ -151,10 +148,10 @@ class AutorallyTrainerMultiClass:
                 features[i, :] = np.transpose(x)
                 labels[i] = negatives_labels[i]
             self.features = np.concatenate((self.features, features))
-            # pca_features = self.pca.transform(self.features)
             self.labels = np.concatenate((self.labels, labels))
+            print 'Training with ', self.features.shape[0], ' features...'
             self.svm_.fit(self.features, self.labels)
-            joblib.dump(self.svm_, 'svm_fine_tune.pkl')
+            joblib.dump(self.svm_, save)
 
     def inter_over_union(self, a, b):
         x1 = max(a[0], b[0])
@@ -164,14 +161,14 @@ class AutorallyTrainerMultiClass:
 
         w = x2-x1
         h = y2-y1
+        if w <= 0 or h <= 0:
+            return 0
         inter = w*h
         aarea = (a[2]-a[0]) * (a[3]-a[1])
         barea = (b[2]-b[0]) * (b[3]-b[1])
         iou = 1.0* inter / (aarea+barea-inter)
-        if w <= 0 or h <= 0:
-            return 0
-        else:
-            return iou
+
+        return iou
 
 
     def load_pascal_annotation(self, index, database_path):
@@ -204,8 +201,6 @@ class AutorallyTrainerMultiClass:
         n_neg_wrong = 0
         for i, im in enumerate(self.test_imgs):
             x = np.asarray(self.hog.compute(im), dtype=np.float32)
-            # pca_x = self.pca.transform(np.transpose(x))
-            # score = self.svm_.predict_proba(np.transpose(x))
             score = self.svm_.decision_function(np.transpose(x))[0]
             neg_weight = 0
             for j in range(self.Kpos, self.Kpos + self.Kneg):
@@ -226,21 +221,6 @@ class AutorallyTrainerMultiClass:
                     n_neg_right += 1
                 else:
                     n_neg_wrong += 1
-
-            # pos_prob = np.sum(score[0,:self.Kpos])
-            # neg_prob = np.sum(score[0, self.Kpos:])
-            #
-            # # prediction = self.svm_.predict(np.transpose(x))
-            # if self.test_labels[i] < self.Kpos:
-            #     if pos_prob > neg_prob:
-            #         n_pos_right += 1
-            #     else:
-            #         n_pos_wrong += 1
-            # else:
-            #     if pos_prob < neg_prob:
-            #         n_neg_right += 1
-            #     else:
-            #         n_neg_wrong += 1
 
         print 'Confusion matrix on test set:'
         print '%4d' % n_pos_right, '%4d' % n_neg_wrong
