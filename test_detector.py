@@ -14,8 +14,8 @@ class AutorallyDetectorMultiClass:
         self.svm_ = joblib.load(svm_file)
         self.database_path = 'autorally_database'
         self.img_path = os.path.join(self.database_path, 'HOGImages')
-        self.pos_subcategories_path = os.path.join(self.img_path, 'PosSubcategories')
-        self.neg_subcategories_path = os.path.join(self.img_path, 'NegSubcategories')
+        self.pos_subcategories_path = os.path.join('database/PosSubcategories')
+        self.neg_subcategories_path = os.path.join('database/NegSubcategories')
         self.pos_subcategories_folders = sorted(os.listdir(self.pos_subcategories_path))
         self.Kpos = len(self.pos_subcategories_folders)
         self.neg_subcategories_folders = sorted(os.listdir(self.neg_subcategories_path))
@@ -160,7 +160,7 @@ if __name__ == '__main__':
     print cv2.__version__
 
     detector = AutorallyDetectorMultiClass('svm1.pkl')
-    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/TestVideos/1.mp4")
+    capture = cv2.VideoCapture("/home/igor/Documents/autorally-detection/TestVideos/2.mp4")
 
     cv2.namedWindow('video')
     while True:

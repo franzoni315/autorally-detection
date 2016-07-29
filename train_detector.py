@@ -87,15 +87,16 @@ class AutorallyTrainerMultiClass:
             x = np.asarray(self.hog.compute(im), dtype=np.float32)
             self.features[i, :] = np.transpose(x)
             self.labels[i] = self.train_labels[i]
+        del self.imgs, self.train_imgs, self.train_labels
         print 'Training with ', self.features.shape[0], ' features...'
         self.svm_.fit(self.features, self.labels)
         joblib.dump(self.svm_, 'svm.pkl', compress=1)
 
         self.testing()
+        for i in range(2):
+            self.hard_negative_training(self.database_path, 'svm.pkl', 'svm.pkl')
 
-        self.hard_negative_training(self.database_path, 'svm.pkl', 'svm1.pkl')
-
-        self.testing()
+            self.testing()
 
         # self.hard_negative_training(self.voc_database, 'svm1.pkl', 'svm2.pkl')
         #
@@ -107,35 +108,35 @@ class AutorallyTrainerMultiClass:
         detector = AutorallyDetectorMultiClass(svm)
         negatives_list = []
         negatives_labels = []
-        negative_filename = os.path.join(database_path, 'ImageSets/Main', 'car_trainval.txt')
-        with open(negative_filename, "r") as f:
-            for line in f:
-                index, flag = line.split()
-                print index
-                img, gt_boxes = self.load_pascal_annotation(index, database_path)
 
-                xscale = float(96*8.0/img.shape[1])
-                yscale = float(48*12.0/img.shape[0])
-                for box in gt_boxes:
-                    box[0] = int(box[0]*xscale)
-                    box[2] = int(box[2]*xscale)
-                    box[1] = int(box[1]*yscale)
-                    box[3] = int(box[3]*yscale)
-                img = cv2.resize(img, (96*8, 48*12))
-                gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                found, w = detector.detectMultiScale(img)
-                for box in found:
-                    prediction_correct = False
-                    for gt_box in gt_boxes:
-                        iou = self.inter_over_union([box[0], box[1], box[0]+box[2], box[1]+box[3]], gt_box)
-                        if iou > 0.35:
-                            prediction_correct = True
-                            continue
-                    if not prediction_correct:
-                        crop_img = gray_img[box[1]:box[1]+box[3], box[0]:box[0]+box[2]]
-                        res_img = cv2.resize(crop_img, self.win_size)
-                        negatives_list.append(res_img)
-                        negatives_labels.append(self.Kpos)
+        files = sorted(os.listdir(os.path.join(database_path, 'Annotations')))
+        index = [os.path.splitext(x)[0] for x in files]
+        for ix in index:
+            print ix
+            img, gt_boxes = self.load_pascal_annotation(ix, database_path)
+
+            xscale = float(96*8.0/img.shape[1])
+            yscale = float(48*12.0/img.shape[0])
+            for box in gt_boxes:
+                box[0] = int(box[0]*xscale)
+                box[2] = int(box[2]*xscale)
+                box[1] = int(box[1]*yscale)
+                box[3] = int(box[3]*yscale)
+            img = cv2.resize(img, (96*8, 48*12))
+            gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            found, w = detector.detectMultiScale(img)
+            for box in found:
+                prediction_correct = False
+                for gt_box in gt_boxes:
+                    iou = self.inter_over_union([box[0], box[1], box[0]+box[2], box[1]+box[3]], gt_box)
+                    if iou > 0.35:
+                        prediction_correct = True
+                        continue
+                if not prediction_correct:
+                    crop_img = gray_img[box[1]:box[1]+box[3], box[0]:box[0]+box[2]]
+                    res_img = cv2.resize(crop_img, self.win_size)
+                    negatives_list.append(res_img)
+                    negatives_labels.append(self.Kpos)
 
         feature_size = self.hog.getDescriptorSize()
         features = np.zeros((len(negatives_list), feature_size), dtype=np.float32)
@@ -145,8 +146,10 @@ class AutorallyTrainerMultiClass:
                 x = np.asarray(self.hog.compute(im), dtype=np.float32)
                 features[i, :] = np.transpose(x)
                 labels[i] = negatives_labels[i]
+
             self.features = np.concatenate((self.features, features))
             self.labels = np.concatenate((self.labels, labels))
+            del negatives_labels, negatives_list, features, labels
             print 'Training with ', self.features.shape[0], ' features...'
             self.svm_.fit(self.features, self.labels)
             joblib.dump(self.svm_, save, compress=1)
